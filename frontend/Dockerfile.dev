@@ -1,0 +1,24 @@
+# 1. Build stage: use Node to bundle
+# means you're giving a name to this stage of the Docker build process—you're calling it builder.
+
+#  Why Name a Build Stage?
+# Naming a stage allows you to reference it later in the Dockerfile. So if you only want to copy the built files from this stage, you can use that name like this:
+FROM node:20-slim AS builder
+
+# This sets /app as the working directory inside the container.
+# All commands that follow (like copying files, installing dependencies, compiling code) happen inside this folder.
+WORKDIR /app
+
+# Install deps
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Copy the rest of the code
+COPY . .
+
+# 2. Serve stage: use lightweight web server
+# Expose Vite's default dev port
+EXPOSE 5173
+
+# Start Vite dev server
+CMD ["npm", "run", "dev", "--", "--host"]

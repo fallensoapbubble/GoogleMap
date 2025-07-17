@@ -1,0 +1,30 @@
+# 1. Base image: Node 20 LTS (slim version)
+FROM node:20-slim
+
+
+# 2. Set working directory inside container
+#Every command that follows happens inside the /app folder in the container.
+WORKDIR /app
+
+
+# 3. Copy package manifest and install dependencies first
+#This copies only the package manifest files (which list your dependencies) from your project folder into the /app directory inside the container (remember, thanks to WORKDIR /app, this is your base).
+
+# Why just these files? So you can install dependencies before copying the rest of the source code. This improves Docker layer caching, making rebuilds faster!
+COPY package.json package-lock.json ./
+
+# npm ci (short for clean install) installs exactly the dependencies listed in package-lock.json. It’s faster and more predictable than npm install, especially in CI/CD pipelines.
+
+# --omit=dev tells npm to skip development dependencies—great for production containers that don’t need things like testing tools or linters.
+RUN npm ci --omit=dev
+
+# 4. Copy the rest of your source code
+COPY . .
+
+
+# 5. Expose port your server listens on
+EXPOSE 4000
+
+
+# 6. Define default start command
+CMD ["node", "index.js"]

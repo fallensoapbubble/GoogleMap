@@ -1,0 +1,115 @@
+version: "3.9"  # Specifies the Docker Compose file format version
+
+services:
+  backend:  # Defines the backend service
+    build:
+      context: ./backend  # Uses the ./backend directory to build the image
+      dockerfile: Dockerfile.dev
+    container_name: gmap-backend  # Names the container for easy reference
+    ports:
+      - "4000:4000"  # Maps port 4000 on host to port 4000 in container
+    environment:
+      MONGODB_URI: "mongodb://mongo:27017/realestate"  # Sets the MongoDB connection URI
+    depends_on:
+      - mongo  # Ensures the 'mongo' service starts before this one
+    restart: always #<--- Restart if it crashes
+
+
+
+
+  frontend:  # Defines the frontend service
+    build:
+      context: ./frontend  # Uses the ./frontend directory to build the image
+      dockerfile: Dockerfile.dev
+    container_name: gmap-frontend  # Names the container for easy reference
+    ports:
+      - "8080:5173"  # Maps port 8080 on host to port 5173 in container
+    volumes:
+      - ./frontend:/app  # Mount code for live updates
+      - /app/node_modules  # Prevent node_modules sync conflict
+    depends_on:
+      - backend  # Ensures the backend service starts before this one
+    environment:
+      VITE_GRAPHQL_URL: "http://localhost:4000/"  # Sets GraphQL endpoint for frontend
+    restart: always  # Optional: auto-restart on crash
+
+  
+  
+  
+  mongo:  # Defines the MongoDB database service
+    image: mongo:6.0  # Uses official MongoDB image version 6.0
+    container_name: gmap-mongo  # Names the MongoDB container
+    restart: unless-stopped  # Restarts container unless explicitly stopped
+    volumes:
+      - ./dump:/dump
+      - mongo_data:/data/db  # Persistent Mongo data
+    ports:
+      - "27017:27017"
+    command: >
+      bash -c "
+      mongod --bind_ip_all --fork --logpath /var/log/mongod.log &&
+      sleep 5 &&
+      mongorestore /dump &&
+      mongod --shutdown &&
+      mongod --bind_ip_all"
+
+
+
+
+# When you write - mongo_data:/data/db, you're telling Docker:
+
+# "Mount a named volume called mongo_data to /data/db inside the container."
+
+# But if mongo_data: is not defined at the bottom of your file under volumes:, Docker doesn’t know what it is. It will either:
+
+# silently create it (in older Compose versions),
+
+# or throw a warning/error (in newer versions).
+
+volumes:
+  mongo_data:
+
+
+#======
+
+#       --bind_ip_all: allows backend to connect from other containers
+
+# mongod --fork: runs in background so restore can happen
+
+# mongod --shutdown: cleanly stops Mongo before restarting
+
+# Final mongod --bind_ip_all: starts again in foreground mode
+
+
+#=====
+
+#detach mode
+# docker-compose -f gmapfinal.yml up -d
+
+
+
+# docker-compose -f gmapfinal.yml down
+
+#This rebuilds your images and re‑mounts your ./frontend folder into the container.
+# docker-compose -f gmapfinal.yml up -d --build
+
+
+
+
+#docker exec -it gmap-mongo mongo realestate --eval "db.properties.find().toArray()" 
+
+
+# docker exec -it gmap-mongo mongosh
+# > use realestate
+# > show collections
+# > db.agents.find().pretty()
+
+
+
+#KILL ALL
+#docker system prune -a --volumes -f
+
+
+
+
+
